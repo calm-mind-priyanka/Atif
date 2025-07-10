@@ -22,12 +22,12 @@ async def send_file(client, query: CallbackQuery):
         await query.answer("⏳ Verifying… Please wait", show_alert=True)
         verify_time = int(settings.get("file_mode", {}).get("verify_time", 3))
         await asyncio.sleep(verify_time)
+
         await client.send_document(
             chat_id=query.message.chat.id,
             document=file["file_id"],
             caption=caption
         )
-        return
 
     elif file_mode == "shortlink":
         short_url = settings.get("shortlinks", {}).get("1") or "https://short.link/example"
@@ -40,7 +40,20 @@ async def send_file(client, query: CallbackQuery):
             document=file["file_id"],
             caption=caption
         )
-        return await query.answer("✅ File Sent!", show_alert=False)
+
+    # ✅ After sending file, send tutorial links if set
+    tutorial_links = settings.get("tutorial_links", {})
+    msgs = []
+
+    if tutorial_links.get("first"):
+        msgs.append(f"▶️ Tutorial 1: {tutorial_links['first']}")
+    if tutorial_links.get("second"):
+        msgs.append(f"▶️ Tutorial 2: {tutorial_links['second']}")
+
+    if msgs:
+        await query.message.reply("\n".join(msgs))
+
+    await query.answer("✅ File Sent!", show_alert=False)
 
 
 @Client.on_callback_query(filters.regex("^(quality|language|season)$"))
