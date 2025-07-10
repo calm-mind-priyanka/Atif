@@ -1,20 +1,44 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import UserNotParticipant, ChatAdminRequired
 from utils import get_file_results
 from settings import get_user_settings
+
+async def is_user_subscribed(client, user_id, channels):
+    for channel in channels:
+        try:
+            await client.get_chat_member(channel, user_id)
+        except UserNotParticipant:
+            return False, channel
+        except ChatAdminRequired:
+            continue
+    return True, None
 
 @Client.on_message(filters.text & filters.group & ~filters.edited)
 async def search_files(client, message: Message):
     query = message.text
     user_id = message.from_user.id
     settings = get_user_settings(user_id)
-    results = await get_file_results(query)
 
+    # Force join check
+    force_channels = settings.get("force_channels", [])
+    if force_channels:
+        is_sub, channel = await is_user_subscribed(client, user_id, force_channels)
+        if not is_sub:
+            return await message.reply(
+                "🚫 You must join our channel to use this bot.",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{channel}")]]
+                )
+            )
+
+    # Search file results
+    results = await get_file_results(query)
     if not results:
         return await message.reply("❌ No results found.")
 
     buttons = []
-    for index, file in enumerate(results[:settings["max_results"]]):
+    for index, file in enumerate(results[:settings.get("max_results", 5)]):
         buttons.append([
             InlineKeyboardButton(f"{file['file_name']}", callback_data=f"file_{index}")
         ])
