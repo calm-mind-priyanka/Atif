@@ -15,14 +15,27 @@ async def send_file(client, query: CallbackQuery):
         return await query.answer("Invalid file index.", show_alert=True)
 
     file = results[index]
-    caption = settings.get("caption") or f"🏷 {file['file_name']}\n📢 Requested by: {query.from_user.mention}"
+
+    # ✅ Support for custom caption with placeholders
+    custom_caption = settings.get("caption")
+    if custom_caption:
+        try:
+            caption = custom_caption.format(
+                file_name=file["file_name"],
+                mention=query.from_user.mention,
+                user_id=query.from_user.id
+            )
+        except Exception:
+            caption = f"🏷 {file['file_name']}\n📢 Requested by: {query.from_user.mention}"
+    else:
+        caption = f"🏷 {file['file_name']}\n📢 Requested by: {query.from_user.mention}"
+
     file_mode = settings.get("file_mode", {}).get("type", "verify")
 
     if file_mode == "verify":
         await query.answer("⏳ Verifying… Please wait", show_alert=True)
         verify_time = int(settings.get("file_mode", {}).get("verify_time", 3))
         await asyncio.sleep(verify_time)
-
         await client.send_document(
             chat_id=query.message.chat.id,
             document=file["file_id"],
@@ -41,7 +54,7 @@ async def send_file(client, query: CallbackQuery):
             caption=caption
         )
 
-    # ✅ After sending file, send tutorial links if set
+    # ✅ Tutorial links (if any)
     tutorial_links = settings.get("tutorial_links", {})
     msgs = []
 
