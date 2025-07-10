@@ -1,7 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant, ChatAdminRequired
-from utils import get_file_results
+from utils import get_file_results, fetch_imdb_details
 from settings import get_user_settings
 
 async def is_user_subscribed(client, user_id, channels):
@@ -31,6 +31,18 @@ async def search_files(client, message: Message):
                     [[InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{channel}")]]
                 )
             )
+
+    # IMDB info if enabled
+    if settings.get("imdb", False):
+        imdb = fetch_imdb_details(query)
+        if imdb:
+            caption = (
+                f"🎬 **{imdb['title']}** ({imdb['year']})\n"
+                f"⭐ IMDB: {imdb['rating']}\n"
+                f"🎭 Genre: {imdb['genre']}\n"
+                f"📖 {imdb['plot']}"
+            )
+            await message.reply_photo(photo=imdb['poster'], caption=caption)
 
     # Search file results
     results = await get_file_results(query)
