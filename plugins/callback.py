@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from utils import get_file_results
 from settings import get_user_settings
+import asyncio
 
 @Client.on_callback_query(filters.regex(r"^file_\d+"))
 async def send_file(client, query: CallbackQuery):
@@ -14,15 +15,32 @@ async def send_file(client, query: CallbackQuery):
         return await query.answer("Invalid file index.", show_alert=True)
 
     file = results[index]
-    caption = settings["caption"] or f"🏷 {file['file_name']}\n📢 Requested by: {query.from_user.mention}"
+    caption = settings.get("caption") or f"🏷 {file['file_name']}\n📢 Requested by: {query.from_user.mention}"
+    file_mode = settings.get("file_mode", {}).get("type", "verify")
 
-    await client.send_document(
-        chat_id=query.message.chat.id,
-        document=file["file_id"],
-        caption=caption
-    )
+    if file_mode == "verify":
+        await query.answer("⏳ Verifying… Please wait", show_alert=True)
+        verify_time = int(settings.get("file_mode", {}).get("verify_time", 3))
+        await asyncio.sleep(verify_time)
+        await client.send_document(
+            chat_id=query.message.chat.id,
+            document=file["file_id"],
+            caption=caption
+        )
+        return
 
-    await query.answer("✅ File Sent!", show_alert=False)
+    elif file_mode == "shortlink":
+        short_url = settings.get("shortlinks", {}).get("1") or "https://short.link/example"
+        await query.message.reply(f"🔗 Get your file via: {short_url}")
+        return await query.answer("🔗 Shortlink sent", show_alert=True)
+
+    else:
+        await client.send_document(
+            chat_id=query.message.chat.id,
+            document=file["file_id"],
+            caption=caption
+        )
+        return await query.answer("✅ File Sent!", show_alert=False)
 
 
 @Client.on_callback_query(filters.regex("^(quality|language|season)$"))
