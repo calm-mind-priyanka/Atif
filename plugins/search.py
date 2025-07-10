@@ -1,7 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant, ChatAdminRequired
-from utils import get_file_results, fetch_imdb_details
+from utils import get_file_results, fetch_imdb_details, get_similar_titles
 from settings import get_user_settings
 import asyncio
 
@@ -57,7 +57,16 @@ async def search_files(client, message: Message):
 
     # Search file results
     results = await get_file_results(query)
+    
     if not results:
+        if settings.get("spell_check"):
+            # Try suggesting similar titles
+            suggestions = get_similar_titles(query)
+            if suggestions:
+                suggestion_text = "\n".join(f"👉 {s}" for s in suggestions)
+                return await message.reply(
+                    f"❌ No results found.\n\nDid you mean:\n{suggestion_text}"
+                )
         return await message.reply("❌ No results found.")
 
     buttons = []
