@@ -3,6 +3,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant, ChatAdminRequired
 from utils import get_file_results, fetch_imdb_details
 from settings import get_user_settings
+import asyncio
 
 async def is_user_subscribed(client, user_id, channels):
     for channel in channels:
@@ -13,6 +14,16 @@ async def is_user_subscribed(client, user_id, channels):
         except ChatAdminRequired:
             continue
     return True, None
+
+def parse_time(t):
+    t = t.lower()
+    if t.endswith("s"):
+        return int(t[:-1])
+    elif t.endswith("m"):
+        return int(t[:-1]) * 60
+    elif t.endswith("h"):
+        return int(t[:-1]) * 3600
+    return 0
 
 @Client.on_message(filters.text & filters.group & ~filters.edited)
 async def search_files(client, message: Message):
@@ -61,7 +72,16 @@ async def search_files(client, message: Message):
          InlineKeyboardButton("📺 Season", callback_data="season")]
     ]
 
-    await message.reply_text(
+    result_msg = await message.reply_text(
         f"🔍 Results for: **{query}**",
         reply_markup=InlineKeyboardMarkup(buttons + extra_buttons)
     )
+
+    # ✅ AUTO DELETE if enabled
+    if settings.get("auto_delete"):
+        delay = parse_time(settings.get("delete_time", "2m"))
+        await asyncio.sleep(delay)
+        try:
+            await result_msg.delete()
+        except:
+            pass
