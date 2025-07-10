@@ -57,10 +57,8 @@ async def search_files(client, message: Message):
 
     # Search file results
     results = await get_file_results(query)
-    
     if not results:
         if settings.get("spell_check"):
-            # Try suggesting similar titles
             suggestions = get_similar_titles(query)
             if suggestions:
                 suggestion_text = "\n".join(f"👉 {s}" for s in suggestions)
@@ -69,22 +67,28 @@ async def search_files(client, message: Message):
                 )
         return await message.reply("❌ No results found.")
 
-    buttons = []
-    for index, file in enumerate(results[:settings.get("max_results", 5)]):
-        buttons.append([
-            InlineKeyboardButton(f"{file['file_name']}", callback_data=f"file_{index}")
-        ])
+    max_results = settings.get("max_results", 5)
+    result_mode = settings.get("result_mode", "button")
+    result_text = f"🔍 Results for: **{query}**\n\n"
+    reply_markup = None
 
-    extra_buttons = [
-        [InlineKeyboardButton("🔁 Quality", callback_data="quality"),
-         InlineKeyboardButton("🎞 Language", callback_data="language"),
-         InlineKeyboardButton("📺 Season", callback_data="season")]
-    ]
+    if result_mode == "button":
+        buttons = []
+        for index, file in enumerate(results[:max_results]):
+            buttons.append([
+                InlineKeyboardButton(f"{file['file_name']}", callback_data=f"file_{index}")
+            ])
+        extra_buttons = [
+            [InlineKeyboardButton("🔁 Quality", callback_data="quality"),
+             InlineKeyboardButton("🎞 Language", callback_data="language"),
+             InlineKeyboardButton("📺 Season", callback_data="season")]
+        ]
+        reply_markup = InlineKeyboardMarkup(buttons + extra_buttons)
+    else:  # Link/Text mode
+        for index, file in enumerate(results[:max_results]):
+            result_text += f"🔗 {file['file_name']}\n"
 
-    result_msg = await message.reply_text(
-        f"🔍 Results for: **{query}**",
-        reply_markup=InlineKeyboardMarkup(buttons + extra_buttons)
-    )
+    result_msg = await message.reply_text(result_text.strip(), reply_markup=reply_markup)
 
     # ✅ AUTO DELETE if enabled
     if settings.get("auto_delete"):
