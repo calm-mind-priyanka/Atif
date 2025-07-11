@@ -1,10 +1,8 @@
-# plugins/settings_handler.py
-
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from settings import get_user_settings
 
-BOT_OWNER = [6046055058]  # Replace with your actual owner ID
-user_settings = {}
+BOT_OWNER = [6046055058]
 
 @Client.on_message(filters.private & filters.command("settings"))
 async def settings_command(client, message: Message):
@@ -41,22 +39,8 @@ async def handle_callbacks(client, query: CallbackQuery):
     user_id = query.from_user.id
     if user_id not in BOT_OWNER:
         return await query.answer("🚫 Not allowed", show_alert=True)
+    settings = get_user_settings(user_id)
     data = query.data
-    settings = user_settings.setdefault(user_id, {
-        "force_channels": [],
-        "max_results": 5,
-        "imdb": False,
-        "spell_check": True,
-        "auto_delete": False,
-        "delete_time": "20m",
-        "result_mode": "link",
-        "file_mode": {"type": "verify", "second_verify": False, "verify_time": "300", "log_channel": ""},
-        "caption": None,
-        "tutorial_links": {"first": "", "second": ""},
-        "shortlinks": {"1": "", "2": ""},
-        "file_secure": False,
-        "awaiting_input": None
-    })
 
     def back_btn(to="back_main"):
         return InlineKeyboardMarkup([[InlineKeyboardButton("<< BACK", callback_data=to)]])
@@ -91,27 +75,23 @@ async def handle_callbacks(client, query: CallbackQuery):
     if data == "imdb":
         settings["imdb"] = not settings["imdb"]
         txt = f"""**IMDB SETTINGS**
-**Poster - {'ON ✅' if settings['imdb'] else 'OFF ❌'}**
-**Template - 🏷 TITLE -** {{title}} **📢 REQUESTED BY - {{mention}} ♾️ POWERED BY - {{group}}**"""
-        btn = [[InlineKeyboardButton("On Poster", callback_data="imdb")], [InlineKeyboardButton("<< BACK", callback_data="back_main")]]
+**Poster - {'ON ✅' if settings['imdb'] else 'OFF ❌'}**"""
+        btn = [[InlineKeyboardButton("Toggle", callback_data="imdb")], [InlineKeyboardButton("<< BACK", callback_data="back_main")]]
         return await query.message.edit(txt, reply_markup=InlineKeyboardMarkup(btn))
 
     if data == "spell_check":
         settings["spell_check"] = not settings["spell_check"]
         txt = f"""**SPELLING CHECK SETTINGS**
 **Spell Check - {'ON ✅' if settings['spell_check'] else 'OFF ❌'}**"""
-        btn = [[InlineKeyboardButton("Turn off" if settings["spell_check"] else "Turn on", callback_data="spell_check")], [InlineKeyboardButton("<< BACK", callback_data="back_main")]]
+        btn = [[InlineKeyboardButton("Toggle", callback_data="spell_check")], [InlineKeyboardButton("<< BACK", callback_data="back_main")]]
         return await query.message.edit(txt, reply_markup=InlineKeyboardMarkup(btn))
 
     if data == "auto_delete":
-        txt = f"""**AUTO DELETE SETTINGS**
-**Auto Delete - {'ON ✅' if not settings['auto_delete'] else 'OFF ❌'}**
-**Delete Time - {settings['delete_time']}**"""
         settings["auto_delete"] = not settings["auto_delete"]
-        btn = [
-            [InlineKeyboardButton("Set Time", callback_data="set_delete_time")],
-            [InlineKeyboardButton("<< BACK", callback_data="back_main")]
-        ]
+        txt = f"""**AUTO DELETE SETTINGS**
+**Auto Delete - {'ON ✅' if settings['auto_delete'] else 'OFF ❌'}**
+**Delete Time - {settings['delete_time']}**"""
+        btn = [[InlineKeyboardButton("Set Time", callback_data="set_delete_time")], [InlineKeyboardButton("<< BACK", callback_data="back_main")]]
         return await query.message.edit(txt, reply_markup=InlineKeyboardMarkup(btn))
 
     if data == "set_delete_time":
@@ -122,7 +102,7 @@ async def handle_callbacks(client, query: CallbackQuery):
         settings["result_mode"] = "button" if settings["result_mode"] == "link" else "link"
         txt = f"""**RESULT MODE SETTINGS**
 **Result Mode - {'🖇 LINKS' if settings['result_mode'] == 'link' else '🎯 BUTTON'}**"""
-        btn = [[InlineKeyboardButton("Set button mode", callback_data="result_mode")], [InlineKeyboardButton("<< BACK", callback_data="back_main")]]
+        btn = [[InlineKeyboardButton("Toggle", callback_data="result_mode")], [InlineKeyboardButton("<< BACK", callback_data="back_main")]]
         return await query.message.edit(txt, reply_markup=InlineKeyboardMarkup(btn))
 
     if data == "caption":
@@ -135,8 +115,8 @@ async def handle_callbacks(client, query: CallbackQuery):
         txt = f"""**FILE MODE SETTINGS**
 **File Mode - {'♻️ VERIFY' if settings['file_mode']['type']=='verify' else '📎 SHORTLINK'}**"""
         btn = [
-            [InlineKeyboardButton("Set shortner mode", callback_data="file_mode")],
-            [InlineKeyboardButton("Is second verify", callback_data="second_verify")],
+            [InlineKeyboardButton("Toggle Mode", callback_data="file_mode")],
+            [InlineKeyboardButton("2nd Verify", callback_data="second_verify")],
             [InlineKeyboardButton("<< BACK", callback_data="back_main")]
         ]
         return await query.message.edit(txt, reply_markup=InlineKeyboardMarkup(btn))
@@ -164,7 +144,7 @@ async def handle_callbacks(client, query: CallbackQuery):
 
     if data == "tutorial_link":
         links = settings["tutorial_links"]
-        txt = f"""**TUTORIAL VIDEO LINKS**
+        txt = f"""**TUTORIAL LINKS**
 **First -** {links['first'] or '❌ Not Set'}
 **Second -** {links['second'] or '❌ Not Set'}"""
         btn = [
@@ -207,7 +187,7 @@ async def handle_text(client, message: Message):
     user_id = message.from_user.id
     if user_id not in BOT_OWNER:
         return
-    settings = user_settings.setdefault(user_id, {})
+    settings = get_user_settings(user_id)
     state = settings.get("awaiting_input")
     if not state:
         return
@@ -219,10 +199,9 @@ async def handle_text(client, message: Message):
     if typ == "force":
         settings["force_channels"] = text.split()
         await message.reply("✅ CHANNELS SAVED")
-    elif typ == "max":
-        if text.isdigit():
-            settings["max_results"] = int(text)
-            await message.reply("✅ MAX RESULTS SAVED")
+    elif typ == "max" and text.isdigit():
+        settings["max_results"] = int(text)
+        await message.reply("✅ MAX RESULTS SAVED")
     elif typ == "delete_time":
         settings["delete_time"] = text
         await message.reply("✅ DELETE TIME SAVED")
