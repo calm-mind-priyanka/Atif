@@ -2,8 +2,9 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant, ChatAdminRequired
 from utils import get_file_results, fetch_imdb_details, get_similar_titles
-from settings import get_user_settings
+from settings import get_group_settings
 import asyncio
+
 
 async def is_user_subscribed(client, user_id, channels):
     for channel in channels:
@@ -15,6 +16,7 @@ async def is_user_subscribed(client, user_id, channels):
             continue
     return True, None
 
+
 def parse_time(t):
     t = t.lower()
     if t.endswith("s"):
@@ -25,11 +27,15 @@ def parse_time(t):
         return int(t[:-1]) * 3600
     return 0
 
+
 @Client.on_message(filters.text & filters.group & ~filters.edited)
 async def search_files(client, message: Message):
     query = message.text
     user_id = message.from_user.id
-    settings = get_user_settings(user_id)
+    group_id = message.chat.id
+
+    # Get group settings
+    settings = get_group_settings(group_id)
 
     # Force join check
     force_channels = settings.get("force_channels", [])
@@ -39,7 +45,7 @@ async def search_files(client, message: Message):
             return await message.reply(
                 "🚫 You must join our channel to use this bot.",
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{channel}")]]
+                    [[InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{channel.lstrip('@')}")]]
                 )
             )
 
