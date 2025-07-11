@@ -1,15 +1,19 @@
 from pyrogram import Client, filters
 from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from utils import get_file_results
-from settings import get_user_settings
+from settings import get_group_settings
 import asyncio
+
 
 @Client.on_callback_query(filters.regex(r"^file_\d+"))
 async def send_file(client, query: CallbackQuery):
-    user_id = query.from_user.id
+    group_id = query.message.chat.id
     index = int(query.data.split("_")[1])
-    settings = get_user_settings(user_id)
-    results = await get_file_results(query.message.text.replace("🔍 Results for: **", "").replace("**", ""))
+    settings = get_group_settings(group_id)
+
+    # Extract query text from the message title
+    search_query = query.message.text.replace("🔍 Results for: **", "").replace("**", "")
+    results = await get_file_results(search_query)
 
     if index >= len(results):
         return await query.answer("Invalid file index.", show_alert=True)
