@@ -3,6 +3,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from settings import get_group_settings, update_group_settings
 from pyrogram.errors import UserNotParticipant
 
+# /settings command in group
 @Client.on_message(filters.command("settings") & filters.group)
 async def settings_command_group(client, message: Message):
     user = await client.get_chat_member(message.chat.id, message.from_user.id)
@@ -10,6 +11,7 @@ async def settings_command_group(client, message: Message):
         return await message.reply("🚫 Only group admins can access settings.")
     await settings_menu(client, message, message.chat.title, message.chat.id)
 
+# Settings menu layout
 async def settings_menu(client, message_or_query, group_title, group_id):
     text = f"""👑 GROUP - {group_title}  
 🆔 ID - {group_id}  
@@ -34,6 +36,7 @@ SELECT ONE OF THE SETTINGS THAT YOU WANT TO CHANGE ACCORDING TO YOUR GROUP…"""
     else:
         await message_or_query.message.edit(text, reply_markup=InlineKeyboardMarkup(btn))
 
+# Handles all callback settings
 @Client.on_callback_query()
 async def handle_callbacks(client, query: CallbackQuery):
     data = query.data
@@ -41,7 +44,7 @@ async def handle_callbacks(client, query: CallbackQuery):
         return await query.answer("❌ Invalid callback")
     action, group_id = data.split(":")
     group_id = int(group_id)
-    
+
     try:
         member = await client.get_chat_member(group_id, query.from_user.id)
         if member.status not in ["administrator", "creator"]:
@@ -105,7 +108,7 @@ async def handle_callbacks(client, query: CallbackQuery):
     if action == "auto_delete":
         settings["auto_delete"] = not settings.get("auto_delete", False)
         update_group_settings(group_id, settings)
-        txt = f"**Auto Delete - {'ON ✅' if settings['auto_delete'] else 'OFF ❌'}**\nDelete Time: {settings.get('delete_time', '20m')}"
+        txt = f"**Auto Delete - {'ON ✅' if settings['auto_delete'] else 'OFF ❌'}**\nDelete Time: {settings.get('delete_time', '2m')}"
         return await query.message.edit(txt, reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Set Time", callback_data=f"set_delete_time:{group_id}")],
             [InlineKeyboardButton("<< BACK", callback_data=f"back_main:{group_id}")]
@@ -116,8 +119,9 @@ async def handle_callbacks(client, query: CallbackQuery):
         update_group_settings(group_id, settings)
         return await query.message.edit("Send time like `15m` or `2h`\n/cancel", reply_markup=back_btn())
 
-    # Add similar toggle actions here for caption, result_mode, file_mode, etc...
+    # You can continue adding more options for caption, file_mode, etc.
 
+# Cancel any input state
 @Client.on_message(filters.command(["cancel"]) & filters.group)
 async def cancel_input(client, message: Message):
     group_id = message.chat.id
@@ -126,6 +130,7 @@ async def cancel_input(client, message: Message):
     update_group_settings(group_id, settings)
     await message.reply("❌ Cancelled process", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("<< BACK", callback_data=f"back_main:{group_id}")]]))
 
+# Handle input from user after setting state
 @Client.on_message(filters.text & filters.group)
 async def group_text_input(client, message: Message):
     group_id = message.chat.id
@@ -136,6 +141,7 @@ async def group_text_input(client, message: Message):
     state = settings.get("awaiting_input")
     if not state:
         return
+
     text = message.text.strip()
     if state["type"] == "force":
         settings["force_channels"] = text.split()
@@ -146,6 +152,7 @@ async def group_text_input(client, message: Message):
     elif state["type"] == "delete_time":
         settings["delete_time"] = text
         await message.reply("✅ DELETE TIME SAVED")
-    # ... other cases like caption, shortlink, etc.
+
+    # Reset awaiting_input
     settings["awaiting_input"] = None
     update_group_settings(group_id, settings)
