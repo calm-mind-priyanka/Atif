@@ -1,7 +1,7 @@
-from database import db
+from database import get_collection  # ✅ Use dynamic DB getter
 
 # MongoDB collection
-settings_col = db["group_settings"]
+settings_col = get_collection("group_settings")  # ✅ Replaces direct db["group_settings"]
 
 # Default group settings
 DEFAULT_SETTINGS = {
