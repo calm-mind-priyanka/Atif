@@ -3,3 +3,4 @@ tgcrypto==1.2.5
 motor==3.1.2
 pymongo==4.6.1
 dnspython==2.6.1
+requests==2.31.0  # ✅ Add this line
