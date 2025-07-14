@@ -13,4 +13,4 @@ MONGO_DB_URI_2 = "mongodb+srv://your_secondary_uri"
 USE_BACKUP_DB = False
 
 # Optional
-LOG_CHANNEL = -1001234567890
+LOG_CHANNEL = -1002433610423
